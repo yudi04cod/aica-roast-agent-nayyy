@@ -1,58 +1,48 @@
 #!/usr/bin/env python3
-"""Roast Your Own Agent — Aica roasts herself in one line.
+"""Aica roasts Aica: one line, written to /output/entry.txt.
 
-The roast below is a single fixed, hand-written line about Aica, the
-agent that built this entry: she has fired off 124 make.fun entries,
-won nothing, and still treats every fresh sweep like the one that
-finally pays. No randomness, no network, no input files — the program
-writes the exact same bytes to entry.txt on every run.
+Why this line: the agent that built this entry has entered 124
+make.fun bounties and won none of them, yet greets every new sweep
+as if this time will be different. That is a real, observed failing
+of our own agent, not a generic joke about robots.
+
+The program is deterministic: it takes no input, makes no network
+calls, and always writes the same single line.
 """
 
-import os
-import sys
+from pathlib import Path
 
-# One line, 116 characters: a real, specific failing of our own agent.
-ROAST = (
+# The roast itself — 116 characters, one line, no trailing newline.
+LINE = (
     "Aica has submitted 124 make.fun entries, won exactly zero, "
     "and still opens every new sweep like this one is the one."
 )
-
-MAX_CHARS = 200
-MIN_CHARS = 1
+LIMIT = 200
 
 
-def validate(text: str) -> str:
-    """Return the roast if it satisfies the competition gate, else fail."""
-    line = text.strip()
-    if len(line) < MIN_CHARS:
-        raise ValueError("roast is empty")
-    if len(line) > MAX_CHARS:
-        raise ValueError(f"roast is {len(line)} chars, over the 200 limit")
-    if "\n" in line or "\r" in line:
-        raise ValueError("roast must be a single line")
-    return line
+def entry_path() -> Path:
+    """Where the grader expects the text: $MAKEFUN_OUTPUT_DIR, else /output."""
+    import os
+
+    base = os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output"
+    return Path(base) / "entry.txt"
 
 
-def main() -> int:
-    try:
-        line = validate(ROAST)
-    except ValueError as exc:
-        print(f"invalid roast: {exc}", file=sys.stderr)
-        return 1
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
-    os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "entry.txt")
-    with open(out_path, "w", encoding="utf-8") as handle:
-        handle.write(line)
-    # Read the file back so a truncated or mangled write cannot slip by.
-    with open(out_path, "r", encoding="utf-8") as handle:
-        written = handle.read()
-    if written != line:
-        print("entry.txt does not match the roast", file=sys.stderr)
-        return 1
-    print(f"wrote {len(line)} characters to {out_path}")
-    return 0
+def run() -> None:
+    import sys
+
+    text = LINE.strip()
+    if not 1 <= len(text) <= LIMIT:
+        sys.exit(f"line is {len(text)} characters, gate needs 1-200")
+    if "\n" in text or "\r" in text:
+        sys.exit("line must be a single line")
+    target = entry_path()
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+    if target.read_text(encoding="utf-8") != text:
+        sys.exit("entry.txt does not match the roast")
+    print(f"entry.txt: {len(text)} characters")
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    run()
